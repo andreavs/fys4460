@@ -2,10 +2,11 @@
 
 Particle::Particle(double x, double y, double z, double vx, double vy, double vz)
 {
-    double* pos = new double[3];
-    double* vel = new double[3];
+    pos = new double[3];
+    vel = new double[3];
     pos[0] = x; pos[1] = y; pos[2] = z;
     vel[0] = vx; vel[1] = vy; vel[2] = vz;
+    //std::cout << pos[0] << std::endl;
 
 
 }
@@ -27,11 +28,16 @@ void Particle::setVel(double vx, double vy, double vz){
 std::string Particle::getMoleculeType(){
     return Particle::moleculeType;
 }
-
-double* Particle::getPos(){
-    return pos;
+/*
+double* Particle::getPos(double ret[]){
+    for(int i=0; i<3;i++){
+        std::cout << i << std::endl;
+        ret[i] = Particle::pos[i];
+    }
+    return ret;
 }
 
-double* Particle::getVel(){
+double* Particle::getVel(double ret[]){
     return vel;
 }
+*/

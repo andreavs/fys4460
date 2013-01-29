@@ -5,7 +5,7 @@ Cell::Cell(int lengthx,int lengthy,int lengthz)
     Nx = lengthx;
     Ny = lengthy;
     Nz = lengthz;
-    std::cout << Ny << Nz << std::endl;
+    //std::cout << Ny << Nz << std::endl;
     Cell::cellContents = new Particle*[Nx*Ny*Nz*4];
 
 }
@@ -29,23 +29,31 @@ void Cell::vmdPrintCell(std::string filename)
     std::ofstream myfile;
     //filename = filename.append(".xyz");
     myfile.open(filename.c_str());
-    double *pos = new double[3];
+    //double *pos = new double[3];
     double *vel = new double[3];
     std::string name;
     int prod = 4*Nx * Ny * Nz;
     myfile << prod << std::endl;
     myfile << "This line has not unintentionally been left unblank" << std::endl;
     std::cout << prod << std::endl;
+
+
+    //std::cout << "balle43234"  << std::endl;
+    //double*pos = Cell::cellContents[0]->getPos(pos);
+    //std::cout << "balle43235" << " "<< pos[1] << std::endl;
+
+
     for(int i=0;i<prod;i++){
-        std::cout << "balle" << pos[1] << std::endl;
-        name = Cell::cellContents[i]->getMoleculeType();
-        std::cout << "balle" << pos[1] << std::endl;
-        //pos = Cell::cellContents[i]->getPos();
-        std::cout << "balle" << pos[1] << std::endl;
+        //std::cout << "balle " << pos[1] << std::endl;
+        name = cellContents[i]->getMoleculeType();
+        std::cout << cellContents[i]->pos[0];
+        //std::cout << "balle43234" << pos[1] << std::endl;
+        //pos = Cell::cellContents[i]->getPos(pos);
+        std::cout << "balle" << i << std::endl;
         //vel = Cell::cellContents[i]->getVel();
-        std::cout << "balle" << pos[1] << std::endl;
-        myfile << name << " " << pos[0] << " " << pos[1] << " " << pos[2] << " " <<
-                  vel[0] << " " << vel[1] << " " << vel[2] << " " << std::endl;
+        //std::cout << "balle" << pos[1] << std::endl;
+        myfile << name << " " << cellContents[i]->pos[0] << " " << cellContents[i]->pos[1] << " " << cellContents[i]->pos[2] << " " <<
+                  cellContents[i]->vel[0] << " " << cellContents[i]->vel[1] << " " << cellContents[i]->vel[2] << " " << std::endl;
 
     }
     myfile.close();

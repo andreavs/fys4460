@@ -1,7 +1,7 @@
 #ifndef PARTICLE_H
 #define PARTICLE_H
 #include <string>
-
+#include <iostream>
 
 class Particle
 {
@@ -11,10 +11,8 @@ public:
     void setPos(double x, double y, double z);
     void setVel(double vx, double vy, double vz);
     std::string getMoleculeType();
-    double* getPos();
-    double* getVel();
-
-private:
+    double* getPos(double ret[]);
+    double* getVel(double ret[]);
     std::string moleculeType;
     double* pos;
     double* vel;
