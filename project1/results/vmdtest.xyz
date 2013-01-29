@@ -1,0 +1,10 @@
+8
+Argon atoms at the corners of a unit cube, with zero velocity!
+Ar 0 0 0 0 0 0
+Ar 1 0 0 0 0 0
+Ar 0 1 0 0 0 0
+Ar 0 0 1 0 0 0
+Ar 1 1 0 0 0 0
+Ar 1 0 1 0 0 0
+Ar 0 1 1 0 0 0
+Ar 1 1 1 0 0 0

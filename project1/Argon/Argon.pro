@@ -3,8 +3,10 @@ CONFIG += console
 CONFIG -= qt
 
 SOURCES += main.cpp \
-    particle.cpp
+    particle.cpp \
+    cell.cpp
 
 HEADERS += \
-    particle.h
+    particle.h \
+    cell.h
 
