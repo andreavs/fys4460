@@ -11,9 +11,10 @@ public:
     void setPos(double x, double y, double z);
     void setVel(double vx, double vy, double vz);
     std::string getMoleculeType();
-    double* getPos(double ret[]);
-    double* getVel(double ret[]);
+    void getPos(double*);
+    void getVel(double*);
     std::string moleculeType;
+private:
     double* pos;
     double* vel;
 };

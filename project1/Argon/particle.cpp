@@ -28,16 +28,16 @@ void Particle::setVel(double vx, double vy, double vz){
 std::string Particle::getMoleculeType(){
     return Particle::moleculeType;
 }
-/*
-double* Particle::getPos(double ret[]){
-    for(int i=0; i<3;i++){
-        std::cout << i << std::endl;
-        ret[i] = Particle::pos[i];
+
+void Particle::getPos(double* ret){
+    for(int i=0;i<3;i++){
+        ret[i] = pos[i];
     }
-    return ret;
 }
 
-double* Particle::getVel(double ret[]){
-    return vel;
+void Particle::getVel(double* ret){
+    for(int i=0;i<3;i++){
+        ret[i] = vel[i];
+    }
 }
-*/
+
