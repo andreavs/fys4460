@@ -3,10 +3,13 @@ CONFIG += console
 CONFIG -= qt
 
 SOURCES += main.cpp \
-    particle.cpp \
+    atom.cpp \
+    system.cpp \
     cell.cpp
 
 HEADERS += \
-    particle.h \
+    atom.h \
+    system.h \
     cell.h
 
+LIBS += -larmadillo -llapack -lblas
