@@ -38,6 +38,7 @@ System::System()
     noOfTimeSteps = 500;
     setPosFCC();
     setVelNormal();
+
     placeAtomsInCells();
     calculateForcesLJMIC();
 
@@ -203,16 +204,19 @@ void System::placeAtomsInCells(){
     vec posvec;
     for(int i=0;i<totalAtoms;i++){
         posvec = atomList[i]->getPos();
-        xCell = (int) posvec(0)*cellSize;
-        yCell = (int) posvec(1)*cellSize;
-        zCell = (int) posvec(2)*cellSize;
+        xCell = (int) posvec(0)/cellSize;
+        yCell = (int) posvec(1)/cellSize;
+        zCell = (int) posvec(2)/cellSize;
         oldCellNumber = atomList[i]->getCellNumber();
         cellNumber = zCell*cellsInYDir*cellsInXDir + yCell*cellsInXDir + xCell;
         if(cellNumber != oldCellNumber){
+            cout << i << endl;
             if(oldCellNumber != -1){
                 cellList[oldCellNumber]->atomsInCell.erase(cellList[oldCellNumber]->atomsInCell.begin()
                                                            + atomList[i]->getPosInCell()-1);
             }
+            cout << i << endl;
+            cout << oldCellNumber << " " << cellNumber << " " << cellList.size() << endl;
             cellList[cellNumber]->atomsInCell.push_back(atomList[i]);
             atomList[i]->setCellNumber(cellNumber);
             atomList[i]->setPosInCell(cellList[cellNumber]->atomsInCell.size()-1);

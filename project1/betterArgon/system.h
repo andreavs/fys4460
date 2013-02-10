@@ -1,7 +1,7 @@
 #ifndef SYSTEM_H
 #define SYSTEM_H
 
-#include "atom.h"
+
 #include "cell.h"
 #include <vector>
 #include <armadillo>

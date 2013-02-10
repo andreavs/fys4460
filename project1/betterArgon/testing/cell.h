@@ -5,6 +5,7 @@
 #include "atom.h"
 #include <vector>
 #include <math.h>
+#include <iostream>
 
 
 class Cell
@@ -12,7 +13,6 @@ class Cell
 public:
     Cell(double cellP, double cellS);
     std::vector<Atom*> atomsInCell;
-
 private:
     arma::vec3 cellPos;
     double cellSize;

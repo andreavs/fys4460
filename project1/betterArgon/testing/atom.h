@@ -3,7 +3,7 @@
 
 #include <string>
 #include <armadillo>
-#include "cell.h"
+
 
 class Atom
 {

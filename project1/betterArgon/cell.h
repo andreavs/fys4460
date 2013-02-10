@@ -5,7 +5,7 @@
 #include <vector>
 #include <math.h>
 #include "atom.h"
-#include "system.h"
+
 
 class Cell
 {
