@@ -3,17 +3,16 @@ using namespace std;
 using namespace arma;
 System::System()
 {
-    nx = 8;
-    ny = 8;
-    nz = 8;
+    nx = 12;
+    ny = 12;
+    nz = 12;
+    b = 1.545;
     atomsPerGridPoint = 4;
     totalAtoms = atomsPerGridPoint*nx*ny*nz;
     for(int i=0; i<totalAtoms;i++){
         atomList.push_back(new Atom());
     }
-
     forces = zeros(3,totalAtoms);
-    b = 1.545;
     mass = 1.0; // mass in argon mass units
     time = 0.0;
     dt = 0.01; // time step
@@ -22,11 +21,26 @@ System::System()
     T0 = 1.0; // temperature
     kb = E0/T0;
     sigma = sqrt(kb*T0/mass);
-    cout << sigma << endl;
+    cellSize = 3*sigma;
+    cellsInXDir = (int) floor(nx*b/cellSize+1);
+    cellsInYDir = (int) floor(ny*b/cellSize+1);
+    cellsInZDir = (int) floor(nz*b/cellSize+1);
+    totalCells = cellsInXDir*cellsInYDir*cellsInZDir;
+    vec3 posvec;
+    for(int i=0;i<cellsInXDir;i++){
+        for(int j=0;j<cellsInYDir;j++){
+            for(int k=0;k<cellsInZDir;k++){
+                posvec << i*cellSize << j*cellSize << k*cellSize;
+                cellList.push_back(new Cell(posvec, cellSize));
+            }
+        }
+    }
     noOfTimeSteps = 500;
     setPosFCC();
     setVelNormal();
+    placeAtomsInCells();
     calculateForcesLJMIC();
+
 }
 
 
@@ -106,6 +120,7 @@ void System::timeEvolve(){
     for(int i=0; i<totalAtoms;i++){
         atomList[i]->setVel(atomList[i]->getVel() + forces.col(i)*dt/(2*mass));
     }
+    placeAtomsInCells();
 }
 
 void System::calculateForcesNull(){
@@ -122,7 +137,12 @@ void System::calculateForcesLJMIC(){
     for(int i=0; i<totalAtoms;i++){
         for(int j=i+1;j<totalAtoms;j++){
             singlePair = (atomList[i]->getPos() - atomList[j]->getPos());
-            //cout << atomList[j]->getPos() << endl;
+            for (int j=0; j<3; j++){
+                singlePair(j) = (abs(singlePair(j)) < abs(singlePair(j) + nx*b))*(abs(singlePair(j)) < abs(singlePair(j) - nx*b))*singlePair(j)
+                        + (abs(singlePair(j) + nx*b) < abs(singlePair(j)))*(abs(singlePair(j) + nx*b) < abs(singlePair(j) - nx*b))*(singlePair(j)+nx*b)
+                        + (abs(singlePair(j) - nx*b) < abs(singlePair(j)))*(abs(singlePair(j) - nx*b) < abs(singlePair(j) + nx*b))*(singlePair(j)-nx*b);
+            }
+            //cout << atomList[j]->getPos()r << endl;
             //singlePair.print();
             r = max(norm(singlePair,2),0.8);
             //cout << r << endl;
@@ -172,4 +192,35 @@ void System::periodicBoundaries(){
         if(modulusVec(2) < 0){modulusVec(2) += ztest;}
         atomList[i]->setPos(modulusVec);
     }
+}
+
+void System::placeAtomsInCells(){
+    int xCell;
+    int yCell;
+    int zCell;
+    int cellNumber;
+    int oldCellNumber;
+    vec posvec;
+    for(int i=0;i<totalAtoms;i++){
+        posvec = atomList[i]->getPos();
+        xCell = (int) posvec(0)*cellSize;
+        yCell = (int) posvec(1)*cellSize;
+        zCell = (int) posvec(2)*cellSize;
+        oldCellNumber = atomList[i]->getCellNumber();
+        cellNumber = zCell*cellsInYDir*cellsInXDir + yCell*cellsInXDir + xCell;
+        if(cellNumber != oldCellNumber){
+            if(oldCellNumber != -1){
+                cellList[oldCellNumber]->atomsInCell.erase(cellList[oldCellNumber]->atomsInCell.begin()
+                                                           + atomList[i]->getPosInCell()-1);
+            }
+            cellList[cellNumber]->atomsInCell.push_back(atomList[i]);
+            atomList[i]->setCellNumber(cellNumber);
+            atomList[i]->setPosInCell(cellList[cellNumber]->atomsInCell.size()-1);
+        }
+    }
+}
+
+
+void System::calculateForcesCellsLJMIC(){
+
 }

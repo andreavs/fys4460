@@ -2,15 +2,15 @@
 #define CELL_H
 
 #include <armadillo>
+#include "atom.h"
 #include <vector>
 #include <math.h>
-#include "atom.h"
-#include "system.h"
+
 
 class Cell
 {
 public:
-    Cell(arma::vec3 cellP, double cellS);
+    Cell(double cellP, double cellS);
     std::vector<Atom*> atomsInCell;
 
 private:

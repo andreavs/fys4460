@@ -4,7 +4,6 @@
 #include <string>
 #include <armadillo>
 #include "cell.h"
-#include "system.h"
 
 class Atom
 {

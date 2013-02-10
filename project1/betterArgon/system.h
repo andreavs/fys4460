@@ -33,8 +33,15 @@ private:
     void timeEvolve();
     void calculateForcesNull();
     void calculateForcesLJMIC();
+    void calculateForcesCellsLJMIC();
     void periodicBoundaries();
+    void placeAtomsInCells();
     int noOfTimeSteps;
+    int totalCells;
+    int cellsInXDir;
+    int cellsInYDir;
+    int cellsInZDir;
+    int cellSize;
 };
 
 #endif // SYSTEM_H
