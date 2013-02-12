@@ -5,13 +5,16 @@
 #include <vector>
 #include <math.h>
 #include "atom.h"
+#include <list>
 
 
 class Cell
 {
 public:
-    Cell(arma::vec3 cellP, double cellS);
-    std::vector<Atom*> atomsInCell;
+    Cell(arma::vec3 cellP, double cellS, int cn);
+    std::list<Atom*> atomsInCell;
+    std::vector<int> neighbourList;
+    int cellIndex;
 
 private:
     arma::vec3 cellPos;

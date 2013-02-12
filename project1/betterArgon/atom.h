@@ -15,18 +15,21 @@ public:
     void setPos(const arma::vec3& newPos){pos = newPos;}
     std::string getName(){return atomName;}
     void setName(std::string newName){atomName = newName;}
+    void setSystemIndex(int sn){systemIndex = sn;}
+    int getSystemIndex(){return systemIndex;}
     void setCellNumber(int cn){cellNumber = cn;}
     int getCellNumber(){return cellNumber;}
-    void setPosInCell(int pic){posInCell = pic;}
-    int getPosInCell(){return posInCell;}
+
+
 
 
 private:
     std::string atomName;
     arma::vec3 pos;
     arma::vec3 vel;
+    int systemIndex;
     int cellNumber;
-    int posInCell;
+
 
 };
 #endif // ATOM_H

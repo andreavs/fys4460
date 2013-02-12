@@ -3,44 +3,76 @@ using namespace std;
 using namespace arma;
 System::System()
 {
-    nx = 12;
-    ny = 12;
-    nz = 12;
+    nx = 8;
+    ny = 8;
+    nz = 8;
     b = 1.545;
     atomsPerGridPoint = 4;
     totalAtoms = atomsPerGridPoint*nx*ny*nz;
     for(int i=0; i<totalAtoms;i++){
         atomList.push_back(new Atom());
+        atomList[i]->setSystemIndex(i);
     }
     forces = zeros(3,totalAtoms);
     mass = 1.0; // mass in argon mass units
     time = 0.0;
-    dt = 0.01; // time step
+    dt = 0.005; // time step
     F0 = 1.0; // force thing in md units
     E0 = 1.0; // energy
     T0 = 1.0; // temperature
     kb = E0/T0;
     sigma = sqrt(kb*T0/mass);
     cellSize = 3*sigma;
-    cellsInXDir = (int) floor(nx*b/cellSize+1);
-    cellsInYDir = (int) floor(ny*b/cellSize+1);
-    cellsInZDir = (int) floor(nz*b/cellSize+1);
+    cellsInXDir = (int) floor(nx*b/cellSize);
+    cellsInYDir = (int) floor(ny*b/cellSize);
+    cellsInZDir = (int) floor(nz*b/cellSize);
     totalCells = cellsInXDir*cellsInYDir*cellsInZDir;
+    cellSize = nx*b/cellsInXDir; //updata cell size to actual
+    cout << cellSize << " " << totalCells << endl;
     vec3 posvec;
-    for(int i=0;i<cellsInXDir;i++){
+    int cellNumber = 0;
+    int neighbour = 0;
+    int neighbourCounter = 0;
+    for(int k=0;k<cellsInZDir;k++){
         for(int j=0;j<cellsInYDir;j++){
-            for(int k=0;k<cellsInZDir;k++){
+            for(int i=0;i<cellsInXDir;i++){
                 posvec << i*cellSize << j*cellSize << k*cellSize;
-                cellList.push_back(new Cell(posvec, cellSize));
+                cellNumber = k*cellsInXDir*cellsInYDir + j*cellsInXDir + i;
+                cellList.push_back(new Cell(posvec, cellSize, cellNumber));
+                //create neighbourcells
+                neighbourCounter = 0;
+                for(int z=0; z<2;z++){
+                    for(int y=0; y<2; y++){
+                        for(int x=0; x<2; x++){
+                            if(x!=0 || y!=0 || z!=0){
+                                neighbour = ((k+z) % cellsInZDir)*cellsInXDir*cellsInYDir + ((j+y) % cellsInYDir)*cellsInXDir + ((i+x) % cellsInXDir);
+                                if(neighbour != cellNumber){
+                                    cellList[cellNumber]->neighbourList.push_back(neighbour);
+                                    neighbourCounter ++;
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }
+    for(int i=0; i<totalCells;i++){
+        for(int j=0; j<7; j++){
+            cout << i << " " << cellList[i]->neighbourList[j] << endl;
+        }
+    }
+
     noOfTimeSteps = 500;
     setPosFCC();
     setVelNormal();
-
+    cout << "placing atoms in initial cells... ";
     placeAtomsInCells();
-    calculateForcesLJMIC();
+    cout << "done!" << endl;
+    cout << "Calculating first time forces... ";
+    calculateForcesCellsLJMIC();
+    cout << "done!" << endl;
+
 
 }
 
@@ -117,7 +149,7 @@ void System::timeEvolve(){
     }
     time += dt;
     periodicBoundaries();
-    calculateForcesLJMIC();
+    calculateForcesCellsLJMIC();
     for(int i=0; i<totalAtoms;i++){
         atomList[i]->setVel(atomList[i]->getVel() + forces.col(i)*dt/(2*mass));
     }
@@ -133,26 +165,31 @@ void System::calculateForcesNull(){
 
 void System::calculateForcesLJMIC(){
     // leonard-jones force using minimal image convention
+    calculateForcesNull(); //zero out the forces vector
     vec3 singlePair;
-    double r;
     for(int i=0; i<totalAtoms;i++){
         for(int j=i+1;j<totalAtoms;j++){
             singlePair = (atomList[i]->getPos() - atomList[j]->getPos());
-            for (int j=0; j<3; j++){
-                singlePair(j) = (abs(singlePair(j)) < abs(singlePair(j) + nx*b))*(abs(singlePair(j)) < abs(singlePair(j) - nx*b))*singlePair(j)
-                        + (abs(singlePair(j) + nx*b) < abs(singlePair(j)))*(abs(singlePair(j) + nx*b) < abs(singlePair(j) - nx*b))*(singlePair(j)+nx*b)
-                        + (abs(singlePair(j) - nx*b) < abs(singlePair(j)))*(abs(singlePair(j) - nx*b) < abs(singlePair(j) + nx*b))*(singlePair(j)-nx*b);
-            }
-            //cout << atomList[j]->getPos()r << endl;
-            //singlePair.print();
-            r = max(norm(singlePair,2),0.8);
-            //cout << r << endl;
-            singlePair = singlePair*(24./pow(r,8))*(2/pow(r,6) - 1);
+            singlePairForces(singlePair);
             forces.col(i) += singlePair;
             forces.col(j) -= singlePair;
         }
     }
+}
 
+void System::singlePairForces(vec3& singlePair){
+    double r2;
+    double r6;
+    double r8;
+    for (int j=0; j<3; j++){
+        singlePair(j) = (abs(singlePair(j)) < abs(singlePair(j) + nx*b))*(abs(singlePair(j)) < abs(singlePair(j) - nx*b))*singlePair(j)
+                + (abs(singlePair(j) + nx*b) < abs(singlePair(j)))*(abs(singlePair(j) + nx*b) < abs(singlePair(j) - nx*b))*(singlePair(j)+nx*b)
+                + (abs(singlePair(j) - nx*b) < abs(singlePair(j)))*(abs(singlePair(j) - nx*b) < abs(singlePair(j) + nx*b))*(singlePair(j)-nx*b);
+    }
+    r2 = max(dot(singlePair,singlePair),0.8);
+    r6 = r2*r2*r2;
+    r8 = r2*r6;
+    singlePair = singlePair*(24./r8)*(2/r6 - 1);
 }
 
 void System::runSimulation(){
@@ -201,6 +238,7 @@ void System::placeAtomsInCells(){
     int zCell;
     int cellNumber;
     int oldCellNumber;
+
     vec posvec;
     for(int i=0;i<totalAtoms;i++){
         posvec = atomList[i]->getPos();
@@ -208,23 +246,74 @@ void System::placeAtomsInCells(){
         yCell = (int) posvec(1)/cellSize;
         zCell = (int) posvec(2)/cellSize;
         oldCellNumber = atomList[i]->getCellNumber();
+
         cellNumber = zCell*cellsInYDir*cellsInXDir + yCell*cellsInXDir + xCell;
         if(cellNumber != oldCellNumber){
-            cout << i << endl;
             if(oldCellNumber != -1){
-                cellList[oldCellNumber]->atomsInCell.erase(cellList[oldCellNumber]->atomsInCell.begin()
-                                                           + atomList[i]->getPosInCell()-1);
+                cellList[oldCellNumber]->atomsInCell.remove(atomList[i]);
             }
-            cout << i << endl;
-            cout << oldCellNumber << " " << cellNumber << " " << cellList.size() << endl;
-            cellList[cellNumber]->atomsInCell.push_back(atomList[i]);
-            atomList[i]->setCellNumber(cellNumber);
-            atomList[i]->setPosInCell(cellList[cellNumber]->atomsInCell.size()-1);
+        cellList[cellNumber]->atomsInCell.push_back(atomList[i]);
+        atomList[i]->setCellNumber(cellNumber);
         }
     }
 }
 
 
 void System::calculateForcesCellsLJMIC(){
-
+    // leonard-jones force using minimal image convention
+    calculateForcesNull(); //zero out the forces vector
+    vec3 singlePair;
+    int i;
+    int thisIndex;
+    int otherIndex;
+    int neighbour;
+    list<Atom*>::iterator dummyk; //IM NOT EVEN JOKING WTF IS THIS
+    int jint = 0; //SRSLY THIS IS WHAT I HAVE TO DEAL WITH
+    list<Atom*>::iterator j;
+    list<Atom*>::iterator k;
+    for(int zCellPos=0; zCellPos<cellsInXDir;zCellPos++){
+        for(int yCellPos=0; yCellPos<cellsInYDir;yCellPos++){
+            for(int xCellPos=0; xCellPos<cellsInYDir;xCellPos++){
+                //particles in own cell
+                i = zCellPos*cellsInXDir*cellsInYDir + yCellPos*cellsInXDir + xCellPos;
+                for(j=cellList[i]->atomsInCell.begin(); j!= cellList[i]->atomsInCell.end(); ++j){
+                    thisIndex = (*j)->getSystemIndex();
+                    dummyk = cellList[i]->atomsInCell.begin();
+                    advance(dummyk, jint+1);
+                    for(k=dummyk; k != cellList[i]->atomsInCell.end(); ++k){
+                        otherIndex = (*k)->getSystemIndex();
+                        singlePair = (atomList[thisIndex]->getPos() - atomList[otherIndex]->getPos());
+                        singlePairForces(singlePair);
+                        forces.col(thisIndex) += singlePair;
+                        forces.col(otherIndex) -= singlePair;
+                    }
+                jint ++;
+                }
+                //particles in neighbouring cells
+                //each cell points to 7 neighbouring cells, to avoid double counting
+                //the cell points to cells which have (x,y,z)-indices increased by 1 (mod N)
+                for(int z=0; z<2;z++){
+                    for(int y=0; y<2; y++){
+                        for(int x=0; x<2; x++){
+                            if(x!=0 || y!=0 || z!=0){
+                                neighbour = ((zCellPos+z) % cellsInZDir)*cellsInXDir*cellsInYDir + ((yCellPos+y) % cellsInYDir)*cellsInXDir + ((xCellPos+x) % cellsInXDir);
+                                if(neighbour != i){
+                                    for(j=cellList[i]->atomsInCell.begin(); j!= cellList[i]->atomsInCell.end(); ++j){
+                                        thisIndex = (*j)->getSystemIndex();
+                                        for(k=cellList[neighbour]->atomsInCell.begin(); k != cellList[neighbour]->atomsInCell.end(); ++k){
+                                            otherIndex = (*k)->getSystemIndex();
+                                            singlePair = (atomList[thisIndex]->getPos() - atomList[otherIndex]->getPos());
+                                            singlePairForces(singlePair);
+                                            forces.col(thisIndex) += singlePair;
+                                            forces.col(otherIndex) -= singlePair;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }

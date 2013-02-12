@@ -36,12 +36,13 @@ private:
     void calculateForcesCellsLJMIC();
     void periodicBoundaries();
     void placeAtomsInCells();
+    void singlePairForces(arma::vec3 &singlePair);
     int noOfTimeSteps;
     int totalCells;
     int cellsInXDir;
     int cellsInYDir;
     int cellsInZDir;
-    int cellSize;
+    double cellSize;
 };
 
 #endif // SYSTEM_H

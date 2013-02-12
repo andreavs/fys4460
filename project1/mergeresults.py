@@ -1,5 +1,5 @@
 mywritefile = open('results/results.xyz', 'w')
-folder = 'betterArgon-build-desktop-Qt_4_8_1_in_PATH__System__Release/'
+folder = 'betterArgon-build-desktop-Qt_4_8_1_in_PATH__System__Debug/'
 N = 499
 for i in range(N+1):
 	filenumber = i;
