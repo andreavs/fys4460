@@ -13,3 +13,8 @@ HEADERS += \
     cell.h
 
 LIBS += -larmadillo -llapack -lblas
+
+QMAKE_CXXFLAGS -= -O
+QMAKE_CXXFLAGS -= -O2
+
+QMAKE_CXXFLAGS += -O3

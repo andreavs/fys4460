@@ -16,13 +16,13 @@ System::System()
     forces = zeros(3,totalAtoms);
     mass = 1.0; // mass in argon mass units
     time = 0.0;
-    dt = 0.005; // time step
+    dt = 0.01; // time step
     F0 = 1.0; // force thing in md units
     E0 = 1.0; // energy
     T0 = 1.0; // temperature
     kb = E0/T0;
     sigma = sqrt(kb*T0/mass);
-    cellSize = 3*sigma;
+    cellSize = 2.0;
     cellsInXDir = (int) floor(nx*b/cellSize);
     cellsInYDir = (int) floor(ny*b/cellSize);
     cellsInZDir = (int) floor(nz*b/cellSize);
@@ -32,7 +32,10 @@ System::System()
     vec3 posvec;
     int cellNumber = 0;
     int neighbour = 0;
-    int neighbourCounter = 0;
+    int x;
+    int y;
+    int z;
+    cout << totalCells << endl;
     for(int k=0;k<cellsInZDir;k++){
         for(int j=0;j<cellsInYDir;j++){
             for(int i=0;i<cellsInXDir;i++){
@@ -40,30 +43,34 @@ System::System()
                 cellNumber = k*cellsInXDir*cellsInYDir + j*cellsInXDir + i;
                 cellList.push_back(new Cell(posvec, cellSize, cellNumber));
                 //create neighbourcells
-                neighbourCounter = 0;
-                for(int z=0; z<2;z++){
-                    for(int y=0; y<2; y++){
-                        for(int x=0; x<2; x++){
-                            if(x!=0 || y!=0 || z!=0){
-                                neighbour = ((k+z) % cellsInZDir)*cellsInXDir*cellsInYDir + ((j+y) % cellsInYDir)*cellsInXDir + ((i+x) % cellsInXDir);
-                                if(neighbour != cellNumber){
-                                    cellList[cellNumber]->neighbourList.push_back(neighbour);
-                                    neighbourCounter ++;
-                                }
-                            }
+                x = 1;
+                for(y=-1;y<2;y++){
+                    for(z=-1;z<2;z++){
+                        neighbour = ((k+z+cellsInZDir) % cellsInZDir)*cellsInXDir*cellsInYDir + ((j+y+cellsInYDir) % cellsInYDir)*cellsInXDir + ((i+x+cellsInXDir) % cellsInXDir);
+                        if(neighbour != cellNumber){
+                            cellList[cellNumber]->neighbourList.push_back(neighbour);
                         }
                     }
+                }
+                x = 0;
+                y = 1;
+                for(z=-1;z<2;z++){
+                    neighbour = ((k+z+cellsInZDir) % cellsInZDir)*cellsInXDir*cellsInYDir + ((j+y+cellsInYDir) % cellsInYDir)*cellsInXDir + ((i+x+cellsInXDir) % cellsInXDir);
+                    if(neighbour != cellNumber){
+                        cellList[cellNumber]->neighbourList.push_back(neighbour);
+                    }
+                }
+                y = 0;
+                z = 1;
+                neighbour = ((k+z+cellsInZDir) % cellsInZDir)*cellsInXDir*cellsInYDir + ((j+y+cellsInYDir) % cellsInYDir)*cellsInXDir + ((i+x+cellsInXDir) % cellsInXDir);
+                if(neighbour != cellNumber){
+                    cellList[cellNumber]->neighbourList.push_back(neighbour);
                 }
             }
         }
     }
-    for(int i=0; i<totalCells;i++){
-        for(int j=0; j<7; j++){
-            cout << i << " " << cellList[i]->neighbourList[j] << endl;
-        }
-    }
 
-    noOfTimeSteps = 500;
+    noOfTimeSteps = 10;
     setPosFCC();
     setVelNormal();
     cout << "placing atoms in initial cells... ";
@@ -92,7 +99,7 @@ void System::vmdPrintSystem(std::string filename)
         vel = atomList[i]->getVel();
 
         myfile << name << " " << pos(0) << " " << pos(1) << " " << pos(2) << " " <<
-                  vel(0) << " " << vel(1) << " " << vel(2) << " " << std::endl;
+                  vel(0) << " " << vel(1) << " " << vel(2) << " " << cellList[atomList[i]->getCellNumber()]->colorIndex << " " <<std::endl;
 
     }
     myfile.close();
@@ -104,7 +111,7 @@ void System::setVelNormal(){
     vec3 randomvec;
     vec3 totaldrift = zeros(3);
     for(int i=0; i<totalAtoms;i++){
-        randomvec = sigma*randn<vec>(3);
+        randomvec = randn<vec>(3);
         atomList[i]->setVel(randomvec);
         totaldrift += randomvec;
     }
@@ -149,11 +156,11 @@ void System::timeEvolve(){
     }
     time += dt;
     periodicBoundaries();
+    placeAtomsInCells();
     calculateForcesCellsLJMIC();
     for(int i=0; i<totalAtoms;i++){
         atomList[i]->setVel(atomList[i]->getVel() + forces.col(i)*dt/(2*mass));
     }
-    placeAtomsInCells();
 }
 
 void System::calculateForcesNull(){
@@ -181,15 +188,21 @@ void System::singlePairForces(vec3& singlePair){
     double r2;
     double r6;
     double r8;
+    double factor;
     for (int j=0; j<3; j++){
         singlePair(j) = (abs(singlePair(j)) < abs(singlePair(j) + nx*b))*(abs(singlePair(j)) < abs(singlePair(j) - nx*b))*singlePair(j)
                 + (abs(singlePair(j) + nx*b) < abs(singlePair(j)))*(abs(singlePair(j) + nx*b) < abs(singlePair(j) - nx*b))*(singlePair(j)+nx*b)
                 + (abs(singlePair(j) - nx*b) < abs(singlePair(j)))*(abs(singlePair(j) - nx*b) < abs(singlePair(j) + nx*b))*(singlePair(j)-nx*b);
     }
-    r2 = max(dot(singlePair,singlePair),0.8);
+    r2 = max(singlePair(0)*singlePair(0) +  singlePair(1)*singlePair(1) + singlePair(2)*singlePair(2),0.81);
+    //r2 = max(dot(singlePair,singlePair),0.81);
     r6 = r2*r2*r2;
     r8 = r2*r6;
-    singlePair = singlePair*(24./r8)*(2/r6 - 1);
+    factor = (24./r8)*(2/r6 - 1);
+    singlePair(0) = factor*singlePair(0);
+    singlePair(1) = factor*singlePair(1);
+    singlePair(2) = factor*singlePair(2);
+    //singlePair = singlePair*(24./r8)*(2/r6 - 1);
 }
 
 void System::runSimulation(){
@@ -200,7 +213,6 @@ void System::runSimulation(){
     vmdPrintSystem(saveFilename);
     for(int i=0; i<noOfTimeSteps;i++){
         cout << "solving for time step: " << i << " out of: " << noOfTimeSteps << "...";
-        timeEvolve();
 
         //some jargon to make file extensions 000, 001, 002, etc.
         filename = "results";
@@ -209,8 +221,9 @@ void System::runSimulation(){
         number.str(""); //TODO: This is bad use of ostringstream, not meant to be reused!
         saveFilename = filename.append(saveFilename).append(extension);
         //jargon done!
-
         vmdPrintSystem(saveFilename);
+        timeEvolve();
+
         cout << " done!" << endl;
     }
 }
@@ -242,9 +255,9 @@ void System::placeAtomsInCells(){
     vec posvec;
     for(int i=0;i<totalAtoms;i++){
         posvec = atomList[i]->getPos();
-        xCell = (int) posvec(0)/cellSize;
-        yCell = (int) posvec(1)/cellSize;
-        zCell = (int) posvec(2)/cellSize;
+        xCell = (int) (posvec(0)/cellSize);
+        yCell = (int) (posvec(1)/cellSize);
+        zCell = (int) (posvec(2)/cellSize);
         oldCellNumber = atomList[i]->getCellNumber();
 
         cellNumber = zCell*cellsInYDir*cellsInXDir + yCell*cellsInXDir + xCell;
@@ -266,17 +279,17 @@ void System::calculateForcesCellsLJMIC(){
     int i;
     int thisIndex;
     int otherIndex;
-    int neighbour;
     list<Atom*>::iterator dummyk; //IM NOT EVEN JOKING WTF IS THIS
     int jint = 0; //SRSLY THIS IS WHAT I HAVE TO DEAL WITH
     list<Atom*>::iterator j;
     list<Atom*>::iterator k;
+    int neighbourPos;
     for(int zCellPos=0; zCellPos<cellsInXDir;zCellPos++){
         for(int yCellPos=0; yCellPos<cellsInYDir;yCellPos++){
             for(int xCellPos=0; xCellPos<cellsInYDir;xCellPos++){
-                //particles in own cell
                 i = zCellPos*cellsInXDir*cellsInYDir + yCellPos*cellsInXDir + xCellPos;
                 for(j=cellList[i]->atomsInCell.begin(); j!= cellList[i]->atomsInCell.end(); ++j){
+                    //particles in own cell
                     thisIndex = (*j)->getSystemIndex();
                     dummyk = cellList[i]->atomsInCell.begin();
                     advance(dummyk, jint+1);
@@ -287,29 +300,20 @@ void System::calculateForcesCellsLJMIC(){
                         forces.col(thisIndex) += singlePair;
                         forces.col(otherIndex) -= singlePair;
                     }
-                jint ++;
-                }
-                //particles in neighbouring cells
-                //each cell points to 7 neighbouring cells, to avoid double counting
-                //the cell points to cells which have (x,y,z)-indices increased by 1 (mod N)
-                for(int z=0; z<2;z++){
-                    for(int y=0; y<2; y++){
-                        for(int x=0; x<2; x++){
-                            if(x!=0 || y!=0 || z!=0){
-                                neighbour = ((zCellPos+z) % cellsInZDir)*cellsInXDir*cellsInYDir + ((yCellPos+y) % cellsInYDir)*cellsInXDir + ((xCellPos+x) % cellsInXDir);
-                                if(neighbour != i){
-                                    for(j=cellList[i]->atomsInCell.begin(); j!= cellList[i]->atomsInCell.end(); ++j){
-                                        thisIndex = (*j)->getSystemIndex();
-                                        for(k=cellList[neighbour]->atomsInCell.begin(); k != cellList[neighbour]->atomsInCell.end(); ++k){
-                                            otherIndex = (*k)->getSystemIndex();
-                                            singlePair = (atomList[thisIndex]->getPos() - atomList[otherIndex]->getPos());
-                                            singlePairForces(singlePair);
-                                            forces.col(thisIndex) += singlePair;
-                                            forces.col(otherIndex) -= singlePair;
-                                        }
-                                    }
-                                }
-                            }
+                    jint ++;
+
+                    //particles in neighbouring cells
+                    //each cell points to 13 neighbouring cells, to avoid double counting
+                    //the cell points to cells which have (x,y,z)-indices increased by 1 (mod N)
+                    //each cell is initialized with a neighbour vector<int> called neighbourList
+                    for(int neighbour = 0; neighbour<cellList[i]->neighbourList.size(); neighbour++){
+                        neighbourPos = cellList[i]->neighbourList[neighbour];
+                        for(k=cellList[neighbourPos]->atomsInCell.begin(); k!= cellList[neighbourPos]->atomsInCell.end(); ++k){
+                            otherIndex = (*k)->getSystemIndex();
+                            singlePair = (atomList[thisIndex]->getPos() - atomList[otherIndex]->getPos());
+                            singlePairForces(singlePair);
+                            forces.col(thisIndex) += singlePair;
+                            forces.col(otherIndex) -= singlePair;
                         }
                     }
                 }

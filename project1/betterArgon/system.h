@@ -16,6 +16,9 @@ public:
     System();
     void vmdPrintSystem(std::string filename);
     void runSimulation();
+    int totalCells;
+    std::vector<Cell*> cellList;
+    double cellSize;
 
 private:
     int nx;
@@ -26,7 +29,6 @@ private:
     std::vector<Atom*> atomList;
     void setVelNormal();
     void setPosFCC();
-    std::vector<Cell*> cellList;
     double b;
     double mass, dt, F0, E0, T0, sigma, kb, time;
     arma::mat forces;
@@ -38,11 +40,10 @@ private:
     void placeAtomsInCells();
     void singlePairForces(arma::vec3 &singlePair);
     int noOfTimeSteps;
-    int totalCells;
     int cellsInXDir;
     int cellsInYDir;
     int cellsInZDir;
-    double cellSize;
+
 };
 
 #endif // SYSTEM_H

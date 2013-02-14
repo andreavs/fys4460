@@ -15,14 +15,14 @@ int main()
     cout << "Hello World!" << endl;
     int j = 3;
     int k;
-    k = 3+j%j;
+    k = 1.1;
     cout << k << endl;
 
     vector<Atom*> atomList;
     atomList.push_back(new Atom());
     cout << atomList[0]->getName() << endl;
     k = 3.15/4;
-    cout << k << endl;
+    cout << "balle" << k << " "<< (1-1%5) << endl;
     return 0;
 }
 

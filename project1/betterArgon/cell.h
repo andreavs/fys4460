@@ -15,6 +15,7 @@ public:
     std::list<Atom*> atomsInCell;
     std::vector<int> neighbourList;
     int cellIndex;
+    double colorIndex;
 
 private:
     arma::vec3 cellPos;
