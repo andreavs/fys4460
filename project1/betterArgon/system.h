@@ -28,9 +28,10 @@ private:
     int totalAtoms;
     std::vector<Atom*> atomList;
     void setVelNormal();
+    void setVelUniform();
     void setPosFCC();
     double b;
-    double mass, dt, F0, E0, T0, sigma, kb, time;
+    double mass, dt, F0, E0, T0, sigma, kb, time, T;
     arma::mat forces;
     void timeEvolve();
     void calculateForcesNull();
@@ -39,11 +40,17 @@ private:
     void periodicBoundaries();
     void placeAtomsInCells();
     void singlePairForces(arma::vec3 &singlePair);
+    void berendsenThermostat();
+    void andersenThermostat();
+    double temperatureBath();
     int noOfTimeSteps;
     int cellsInXDir;
     int cellsInYDir;
     int cellsInZDir;
-
+    double stddev;
+    void printSystemProperties();
+    std::ofstream systemFile;
+    double energy, kineticEnergy, potentialEnergy, temperature, singlePairPotential, pressure, displacement, volume;
 };
 
 #endif // SYSTEM_H

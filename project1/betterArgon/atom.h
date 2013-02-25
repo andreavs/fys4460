@@ -20,6 +20,10 @@ public:
     void setCellNumber(int cn){cellNumber = cn;}
     int getCellNumber(){return cellNumber;}
 
+    void setInitialPos(const arma::vec3& initPos){initialPos = initPos;}
+    const arma::vec3& getInitialPos(){return initialPos;}
+    void setRealPos(const arma::vec3& initPos){realPos = initPos;}
+    const arma::vec3& getRealPos(){return realPos;}
 
 
 
@@ -29,6 +33,8 @@ private:
     arma::vec3 vel;
     int systemIndex;
     int cellNumber;
+    arma::vec3 initialPos;
+    arma::vec3 realPos;
 
 
 };
