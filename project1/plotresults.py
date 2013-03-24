@@ -97,7 +97,8 @@ def plotRadialDist():
 	L = 2*Lhalf
 	#otherpos = np.zeros((3,2048))
 	diff = np.zeros(3)
-	distancebins = np.zeros(20)
+	numBins = 100
+	distancebins = np.zeros(numBins)
 	for i in xrange(50,70):
 		print i
 		filenumber = i;
@@ -122,13 +123,16 @@ def plotRadialDist():
 						(diff[h] - L)*(abs(diff[h])>abs(diff[h] - L))*(abs(diff[h]) + L>abs(diff[h] - L)) + \
 						(diff[h] + L)*(diff[h]+L<abs(diff[h] - L))*(abs(diff[h]) > diff[h]+L)
 				distance = LA.norm(positions[:,k] - positions[:,l],2)
-				index = int(distance*20/Lhalf)
-				if(index < 20):
+				index = int(distance*numBins/Lhalf)
+				if(index < numBins):
 					distancebins[index] += 1
 		myreadfile.close()
-	for i in range(20):
-		distancebins[i] /= sum(distancebins)
-	plt.bar(range(20),distancebins, width=1.0, bottom=0)
+	dr = Lhalf/numBins
+	for i in range(numBins):
+		r = i*Lhalf/numBins
+		volume = 4*np.pi*((r+dr)**3 - r**3)/3.
+		distancebins[i] /= volume
+	plt.bar(range(numBins),distancebins, width=1.0, bottom=0)
 	plt.title("relative Radial distribution function from 0 to L/2")
 	plt.xlabel("Distance")
 	plt.ylabel("Relative distribution")

@@ -12,9 +12,9 @@ HEADERS += \
     system.h \
     cell.h
 
-LIBS += -larmadillo -llapack -lblas
+LIBS += -larmadillo -llapack -lblas -fopenmp
 
-COMMON_CXXFLAGS = -std=c++0x
+COMMON_CXXFLAGS = -std=c++0x -fopenmp
 QMAKE_CXXFLAGS += $$COMMON_CXXFLAGS
 QMAKE_CXXFLAGS_RELEASE += $$COMMON_CXXFLAGS
 QMAKE_CXXFLAGS_DEBUG += $$COMMON_CXXFLAGS

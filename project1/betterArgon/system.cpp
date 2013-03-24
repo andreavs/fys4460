@@ -1,11 +1,12 @@
 #include "system.h"
 using namespace std;
 using namespace arma;
-System::System()
+System::System(ConfigReader *cfg)
 {
-    nx = 8;
-    ny = 8;
-    nz = 8;
+
+    nx = 20;
+    ny = 20;
+    nz = 20;
     b = 1.545;
     atomsPerGridPoint = 4;
     totalAtoms = atomsPerGridPoint*nx*ny*nz;
@@ -207,17 +208,19 @@ void System::calculateForcesLJMIC(){
     // leonard-jones force using minimal image convention
     calculateForcesNull(); //zero out the forces vector
     vec3 singlePair;
+    double singlePairPotential;
+    double pressureThread;
     for(int i=0; i<totalAtoms;i++){
         for(int j=i+1;j<totalAtoms;j++){
             singlePair = (atomList[i]->getPos() - atomList[j]->getPos());
-            singlePairForces(singlePair);
+            singlePairForces(singlePair, &singlePairPotential, &pressureThread);
             forces.col(i) += singlePair;
             forces.col(j) -= singlePair;
         }
     }
 }
 
-void System::singlePairForces(vec3& singlePair){
+void System::singlePairForces(vec3& singlePair, double *singlePairPotential, double *pressureThread){
     double r2;
     double r6;
     double r8;
@@ -234,8 +237,8 @@ void System::singlePairForces(vec3& singlePair){
     r6 = r2*r2*r2;
     r8 = r2*r6;
     factor = (24./r8)*(2/r6 - 1);
-    singlePairPotential = 4.0*E0/r6*(1.0/r6 - 1.0);
-    pressure += dot(factor*singlePair,singlePair);
+    *singlePairPotential = 4.0*E0/r6*(1.0/r6 - 1.0);
+    *pressureThread += dot(factor*singlePair,singlePair);
     singlePair(0) = factor*singlePair(0);
     singlePair(1) = factor*singlePair(1);
     singlePair(2) = factor*singlePair(2);
@@ -269,7 +272,7 @@ void System::runSimulation(){
         energy = kineticEnergy + potentialEnergy;
         temperature = 2./(3.*totalAtoms)*kineticEnergy;
         pressure = totalAtoms/volume*temperature + (1./(3.*volume))*pressure;
-        andersenThermostat();
+        //andersenThermostat();
         vmdPrintSystem(saveFilename);
         printSystemProperties();
         pressure = 0.0;
@@ -292,7 +295,6 @@ void System::runSimulation(){
     for(int i=0; i<totalAtoms; i++){
         kineticEnergy += dot(atomList[i]->getVel(), atomList[i]->getVel());
         displacement += dot(atomList[i]->getRealPos() - atomList[i]->getInitialPos(), atomList[i]->getRealPos() - atomList[i]->getInitialPos());
-
     }
     kineticEnergy *= 0.5*mass;
     displacement /= totalAtoms;
@@ -358,6 +360,16 @@ void System::calculateForcesCellsLJMIC(){
     list<Atom*>::iterator k;
     int neighbourPos;
     int counter = 0;
+    mat forcesThread = zeros(3,totalAtoms);
+    double potentialEnergyThread = 0.0;
+    double singlePairPotential;
+    double pressureThread;
+    #pragma omp parallel private(singlePair,singlePairPotential,pressureThread,i,thisIndex,otherIndex,dummyk,jint,j,k,neighbourPos,counter,forcesThread,potentialEnergyThread)
+    {
+    forcesThread = zeros(3,totalAtoms);
+    potentialEnergyThread = 0.0;
+    pressureThread = 0.0;
+    #pragma omp for
     for(int zCellPos=0; zCellPos<cellsInXDir;zCellPos++){
         for(int yCellPos=0; yCellPos<cellsInYDir;yCellPos++){
             for(int xCellPos=0; xCellPos<cellsInYDir;xCellPos++){
@@ -373,10 +385,10 @@ void System::calculateForcesCellsLJMIC(){
                     for(k=dummyk; k != cellList[i]->atomsInCell.end(); ++k){
                         otherIndex = (*k)->getSystemIndex();
                         singlePair = (atomList[thisIndex]->getPos() - atomList[otherIndex]->getPos());
-                        singlePairForces(singlePair);
-                        potentialEnergy += singlePairPotential;
-                        forces.col(thisIndex) += singlePair;
-                        forces.col(otherIndex) -= singlePair;
+                        singlePairForces(singlePair,&singlePairPotential, &pressureThread);
+                        potentialEnergyThread += singlePairPotential;
+                        forcesThread.col(thisIndex) += singlePair;
+                        forcesThread.col(otherIndex) -= singlePair;
                     }
                     jint ++;
                     //cout << jint << " jint" << endl;
@@ -391,18 +403,23 @@ void System::calculateForcesCellsLJMIC(){
                         for(k=cellList[neighbourPos]->atomsInCell.begin(); k!= cellList[neighbourPos]->atomsInCell.end(); ++k){
                             otherIndex = (*k)->getSystemIndex();
                             singlePair = (atomList[thisIndex]->getPos() - atomList[otherIndex]->getPos());
-                            singlePairForces(singlePair);
-                            potentialEnergy += singlePairPotential;
-                            forces.col(thisIndex) += singlePair;
-                            forces.col(otherIndex) -= singlePair;
+                            singlePairForces(singlePair, &singlePairPotential, &pressureThread);
+                            potentialEnergyThread += singlePairPotential;
+                            //cout << potentialEnergyThread << endl;
+                            forcesThread.col(thisIndex) += singlePair;
+                            forcesThread.col(otherIndex) -= singlePair;
                         }
                     }
-                    //cout << counter << endl;
                 }
-
             }
-
         }
+    }
+    #pragma omp critical
+    {
+    potentialEnergy = potentialEnergy + potentialEnergyThread;
+    forces = forces + forcesThread;
+    pressure = pressure + pressureThread;
+    }
     }
 }
 

@@ -39,7 +39,7 @@ private:
     void calculateForcesCellsLJMIC();
     void periodicBoundaries();
     void placeAtomsInCells();
-    void singlePairForces(arma::vec3 &singlePair);
+    void singlePairForces(arma::vec3 &singlePair, double *singlePairPotential, double *pressureThread);
     void berendsenThermostat();
     void andersenThermostat();
     double temperatureBath();
@@ -50,7 +50,7 @@ private:
     double stddev;
     void printSystemProperties();
     std::ofstream systemFile;
-    double energy, kineticEnergy, potentialEnergy, temperature, singlePairPotential, pressure, displacement, volume;
+    double energy, kineticEnergy, potentialEnergy, temperature, pressure, displacement, volume;
 };
 
 #endif // SYSTEM_H
