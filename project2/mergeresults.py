@@ -1,8 +1,9 @@
 import glob
+import os
 
 def mergeresults():
 	mywritefile = open('results/results.xyz', 'w')
-	folder = 'MDnano-build-desktop-Qt_4_8_1_in_PATH__System__Release/experiments/thermalize/results/'
+	folder = 'MDnano-build-desktop-Qt_4_8_1_in_PATH__System__Release/experiments/aftergrav/results/'
 	N = len(glob.glob(folder + 'results*.xyz'))
 	for i in range(N):
 		filenumber = i;
@@ -12,6 +13,7 @@ def mergeresults():
 		for line in myreadfile.readlines():
 			mywritefile.write(line)
 		myreadfile.close()
+		#os.system("rm " + filename)
 	mywritefile.close()
 
 if __name__ == '__main__':

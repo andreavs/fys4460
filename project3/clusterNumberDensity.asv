@@ -1,0 +1,58 @@
+% n(s,p) is the probability for any site to be a part of a cluster of size
+% s
+L = 100; 
+N = 20;
+n = 2.^(2:N);
+pc = 0.59275;
+pabove = pc + 1./n;
+pbelow = pc - 1./n;
+
+areas = zeros(L*L,1);
+nExperiments = 10; 
+p = 0.62;
+for i=1:nExperiments
+    r = rand(L,L);
+    
+    z = r<p; % This generates the binary array
+    [lw,num] = bwlabel(z,4);
+
+    %img = label2rgb(lw,'jet','k','shuffle');
+    %image(img);
+
+    s = regionprops(lw,'Area');
+    area = cat(1,s.Area);
+    up = lw(1,:);
+    down = lw(L,:);
+    left = lw(:,1);
+    right = lw(:,L);
+    ud = intersect(up,down);
+    lr = intersect(left,right);
+
+    connectingClusters = sort(union(ud,lr));
+    
+    counter = 0; % when we delete elements we must shift indices.
+    for j=1:length(connectingClusters)
+       if connectingClusters(j) ~= 0
+           index = connectingClusters(j) + counter
+           area(index) = [];
+           counter = counter - 1; 
+           
+       end
+    end
+    
+    areas(area) = areas(area) + 1; % I FUCKING LOVE MATLAB
+end
+areas = areas/nExperiments;
+
+n = 20
+bins = zeros(n,1);
+binSize = 1;
+while i=1:length(bins)
+    tester = (areas>binStarts(i)).*(areas<binStarts(i+1)).*areas;
+    
+    bins(i) = sum(tester);
+    binSize = (binStarts(i+1)-binStarts(i));
+    bins(i) = bins(i)/binSize;
+end  
+binStarts = binStarts(1:n);
+plot(log10(binStarts), bins)

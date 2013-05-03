@@ -27,6 +27,9 @@ public:
     std::vector<Cell*> cellList;
     double cellSize;
     int totalAtoms;
+    double fastPressure;
+    double fastPotentialEnergy;
+
 
 private:
     int nx;
@@ -54,6 +57,7 @@ private:
     bool readInitialFromFile;
     bool setVelNormalbool;
     bool setVelUniformbool;
+    int unFrozen;
 
 
 
@@ -62,8 +66,7 @@ private:
 
     std::string experiment; //experiment to start from
 
-    double fastPressure;
-    double fastPotentialEnergy;
+
 
 };
 

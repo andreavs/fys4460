@@ -16,12 +16,26 @@ public:
     void runSimulation();
 
     void timeEvolve();
+    void calculateForces();
     void calculateForcesNull();
     void calculateForcesLJMIC();
     void calculateForcesCellsLJMIC();
+    void calculateForcesGravity();
+    void calculateForcesThreeBody();
+    void calculateForcesFourBody();
+    void calculateForcesSixBody();
     void periodicBoundaries();
 
-    void singlePairForces(double* singlePair, double *singlePairPotential, double *pressureThread);
+    bool useLJ;
+    bool useGrav;
+    bool useThreeBody;
+    bool useFourBody;
+    bool useSixBody;
+    double gravityXComponent;
+    double gravityYComponent;
+    double gravityZComponent;
+
+    void singlePairForces(double* singlePair, double *singlePairPotential, double *singleParticlePressure);
     void berendsenThermostat(double temp);
     void andersenThermostat(double temp);
     double temperatureBath();
@@ -41,12 +55,17 @@ public:
     int sampleFrequency; //how often to sample stats (in time step)
     bool sampleNow;
 
+    int cpus;
+
+    int timeStep;
+
     System *mySystem;
     ConfigReader *cfgReader;
     StatisticsCalculator *myStats;
 
     double fastPressure;
     double fastPotentialEnergy;
+
 
     arma::mat forces;
 };

@@ -8,5 +8,6 @@ Cell::Cell(vec3 cellP, double cellS, int cn)
     cellIndex = cn;
     vec v1 = randu(1);
     colorIndex = v1[0];
+    cellPressure = 0;
 
 }

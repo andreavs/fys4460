@@ -47,9 +47,6 @@ System::System(ConfigReader *cfgReader)
     experiment = "experiments/" + experiment + "/results/lastState.xyz";
 
 
-    cout << "setting up computation cells... ";
-    setupCells();
-    cout << "done!" << endl;
     if(createFCC){
         totalAtoms = atomsPerGridPoint*nx*ny*nz;
         for(int i=0; i<totalAtoms;i++){
@@ -79,7 +76,7 @@ System::System(ConfigReader *cfgReader)
             getline(myfile,line);
             totalAtoms = atoi(line.c_str());
             getline(myfile,line);
-            //cout << totalAtoms << endl;
+            cout << totalAtoms << endl;
 
             int counter = 0;
             for(int i=0;i<totalAtoms;i++)
@@ -102,6 +99,8 @@ System::System(ConfigReader *cfgReader)
                 atomList[i]->setVel(vel);
                 atomList[i]->setSystemIndex(i);
                 contents.clear();
+
+                //cout << i << endl;
                 counter++;
             }
         //cout << counter << endl;
@@ -109,9 +108,21 @@ System::System(ConfigReader *cfgReader)
         //cout << totalAtoms << endl;
         myfile.close();
         }
-
         else cout << "Unable to open file";
        }
+
+
+    cout << "setting up computation cells... ";
+    setupCells();
+    cout << "done!" << endl;
+
+    unFrozen = 0;
+    for(int i=0;i<totalAtoms;i++){
+        if(!atomList[i]->isFrozen){
+            unFrozen++;
+        }
+    }
+
 
     placeAtomsInCells();
 }
@@ -271,16 +282,19 @@ void System::placeAtomsInCells(){
     int zCell;
     int cellNumber;
     int oldCellNumber;
+    //int cells = cellsInYDir*cellsInXDir*cellsInZDir;
 
     vec posvec;
     for(int i=0;i<totalAtoms;i++){
-
+        //cout << i << endl;
         posvec = atomList[i]->getPos();
+
         xCell = (int) (posvec(0)/cellSize);
         yCell = (int) (posvec(1)/cellSize);
         zCell = (int) (posvec(2)/cellSize);
         oldCellNumber = atomList[i]->getCellNumber();
         cellNumber = zCell*cellsInYDir*cellsInXDir + yCell*cellsInXDir + xCell;
+        //cout << cellNumber << endl;
         if(cellNumber != oldCellNumber){
             if(oldCellNumber != -1){
 
@@ -312,7 +326,7 @@ void System::vmdPrintSystem(std::string filename)
         displacement = dot(displacementvec,displacementvec);
         myfile << name << " " << pos(0) << " " << pos(1) << " " << pos(2) << " " <<
                   vel(0) << " " << vel(1) << " " << vel(2) << " " << cellList[atomList[i]->getCellNumber()]->colorIndex << " "
-               << displacement << " " << norm(vel,2) << " " << atomList[i]->isFrozen << " " << std::endl;
+               << displacement << " " << norm(vel,2) << " " << atomList[i]->isFrozen << " " << atomList[i]->atomPressure << " " << std::endl;
     }
     myfile.close();
 }

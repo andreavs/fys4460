@@ -12,6 +12,7 @@ Atom::Atom(string an, bool freeze)
     cellNumber = -1;
     mass = 1.0;
     isFrozen = freeze;
+    atomPressure = 0;
 }
 
 Atom::Atom(ConfigReader *cfgReader, string an, bool freeze){
@@ -20,5 +21,6 @@ Atom::Atom(ConfigReader *cfgReader, string an, bool freeze){
     vel = zeros<vec>(3);
     cellNumber = -1;
     isFrozen = freeze;
+    atomPressure = 0;
 
 }

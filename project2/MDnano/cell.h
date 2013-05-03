@@ -20,6 +20,7 @@ public:
     double colorIndex;
     arma::vec3 cellPos;
     double cellSize;
+    double cellPressure;
 
 };
 

@@ -19,7 +19,7 @@ HEADERS += \
     statisticscalculator.h \
     configreader.h
 
-LIBS += -larmadillo -llapack -lblas -fopenmp -lconfig++
+LIBS += -larmadillo -llapack -lblas -fopenmp -lconfig++ #-static-intel
 
 #LIBS += /opt/intel/lib/intel64/libomp5.so
 
@@ -29,7 +29,7 @@ COMMON_CXXFLAGS = -std=c++0x -fopenmp
 QMAKE_CXXFLAGS += $$COMMON_CXXFLAGS
 QMAKE_CXXFLAGS_RELEASE += $$COMMON_CXXFLAGS
 QMAKE_CXXFLAGS_DEBUG += $$COMMON_CXXFLAGS
-QMAKE_LFLAGS += -openmp
+QMAKE_LFLAGS += -fopenmp
 
 release {
 DEFINES += ARMA_NO_DEBUG

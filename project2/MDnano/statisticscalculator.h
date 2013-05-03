@@ -15,7 +15,7 @@ class System;
 class StatisticsCalculator
 {
 public:
-    StatisticsCalculator(System *system, ConfigReader *cfgReader);
+    StatisticsCalculator(System *system, ConfigReader *cfgReader, std::string experiment);
     void printSystemProperties();
     std::ofstream systemFile;
     double energy, kineticEnergy, potentialEnergy, temperature, pressure, displacement, volume;
@@ -28,6 +28,7 @@ public:
     void sampleStats();
     System *mySystem;
     bool calculatePressureQuick;
+    int numberOfLoopsX;
 };
 
 #endif // STATISTICSCALCULATOR_H

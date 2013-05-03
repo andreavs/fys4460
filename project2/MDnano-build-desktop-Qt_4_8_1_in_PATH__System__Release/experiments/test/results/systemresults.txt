@@ -1,0 +1,2 @@
+(time) (Energy) (Kinetic Energy) (Potential Energy) (Pressure) (Temperature) 
+0.5 9.90039e+58 9.90039e+58 0 2.2371e+54 2.06258e+54 7.75511e+53 

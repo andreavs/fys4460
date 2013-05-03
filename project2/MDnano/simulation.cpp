@@ -31,7 +31,8 @@ Simulation::Simulation(string filename)
     string fncfg = "experiments/" + fn + "/" + fn + ".cfg";
     cfgReader = new ConfigReader(fncfg);
     mySystem = new System(cfgReader);
-    myStats = new StatisticsCalculator(mySystem, cfgReader);
+    //periodicBoundaries();
+    myStats = new StatisticsCalculator(mySystem, cfgReader, filename);
     try
     {
       noOfTimeSteps = cfgReader->cfg.lookup("noOfTimeSteps");
@@ -43,6 +44,15 @@ Simulation::Simulation(string filename)
       thermostatTemperatureKelvin = cfgReader->cfg.lookup("thermostatTemperatureKelvin");
       createMovie = cfgReader->cfg.lookup("createMovie");
       sampleFrequency = cfgReader->cfg.lookup("sampleFrequency");
+      cpus = cfgReader->cfg.lookup("cpus");
+      useLJ = cfgReader->cfg.lookup("useLN");
+      useGrav = cfgReader->cfg.lookup("useGravity");
+      gravityXComponent = cfgReader->cfg.lookup("gravityconstx");
+      gravityYComponent = cfgReader->cfg.lookup("gravityconsty");
+      gravityZComponent = cfgReader->cfg.lookup("gravityconstz");
+      useThreeBody =  cfgReader->cfg.lookup("usethreebody");
+      useFourBody = cfgReader->cfg.lookup("usefourbody");
+      useSixBody = cfgReader->cfg.lookup("usesixbody");
     }
     catch(const SettingNotFoundException &nfex)
     {
@@ -51,15 +61,21 @@ Simulation::Simulation(string filename)
     forces = zeros<mat>(3,totalAtoms);
     thermostatTemperature = thermostatTemperatureKelvin/119.74;
     cout << "calculating first time forces... ";
-    calculateForcesCellsLJMIC();
+    sampleNow = calculateStatistics;
+    calculateForces();
+    //if(calculateStatistics){
+    //    myStats->sampleStats();
+    //    myStats->printSystemProperties();
+    //}
     cout << "done!" << endl;
 
+    timeStep = 0;
 
 }
 
 
 void Simulation::timeEvolve(){
-
+    #pragma omp parallel for num_threads(cpus)
     for(int i=0; i<totalAtoms;i++){
         if(!atomList[i]->isFrozen){
             atomList[i]->setVel(atomList[i]->getVel() + forces.col(i)*dt/(2*atomList[i]->getMass()));
@@ -70,7 +86,8 @@ void Simulation::timeEvolve(){
     mySystem->time += dt;
     periodicBoundaries();
     mySystem->placeAtomsInCells();
-    calculateForcesCellsLJMIC();
+    calculateForces();
+    #pragma omp parallel for num_threads(cpus)
     for(int i=0; i<totalAtoms;i++){
         if(!atomList[i]->isFrozen){
             atomList[i]->setVel(atomList[i]->getVel() + forces.col(i)*dt/(2*atomList[i]->getMass()));
@@ -80,10 +97,9 @@ void Simulation::timeEvolve(){
 
 
 void Simulation::calculateForcesNull(){
-    vec3 tempvec = zeros(3);
+    forces.zeros();
     for(int i=0; i<totalAtoms;i++){
-        forces.col(i) = tempvec;
-
+        atomList[i]->atomPressure = 0;
     }
 }
 
@@ -103,7 +119,7 @@ void Simulation::calculateForcesLJMIC(){
     }
 }
 
-void Simulation::singlePairForces(double* singlePair, double *singlePairPotential, double *pressureThread){
+void Simulation::singlePairForces(double* singlePair, double *singlePairPotential, double *singleParticlePressure){
     double r2inv;
     double r6inv;
     double r8inv;
@@ -115,7 +131,7 @@ void Simulation::singlePairForces(double* singlePair, double *singlePairPotentia
     factor = (24.*r8inv)*(2*r6inv - 1);
     if(sampleNow){
         *singlePairPotential = 4.0*r6inv*(r6inv - 1.0);
-        *pressureThread += factor*( singlePair[0]*singlePair[0] + singlePair[1]*singlePair[1] + singlePair[2]*singlePair[2] );
+        *singleParticlePressure = factor*( singlePair[0]*singlePair[0] + singlePair[1]*singlePair[1] + singlePair[2]*singlePair[2] );
     }
     singlePair[0] = factor*singlePair[0];
     singlePair[1] = factor*singlePair[1];
@@ -129,8 +145,9 @@ void Simulation::runSimulation(){
     string saveFilename;
     string extension = ".xyz";
     //mySystem->vmdPrintSystem(saveFilename);
+    timeStep = 0;
     for(int i=0; i<noOfTimeSteps;i++){
-        calculateForcesNull();
+
         cout << "solving for time step: " << i << " out of: " << noOfTimeSteps << "...";
         //some jargon to make file extensions 000, 001, 002, etc.
         filename = "experiments/" + fn + "/results/results";
@@ -146,25 +163,31 @@ void Simulation::runSimulation(){
             saveFilename = "experiments/" + fn + "/results/" + "lastState.xyz";
             mySystem->vmdPrintSystem(saveFilename);
         }
-        if(calculateStatistics && (i%sampleFrequency == 0)){
+
+        sampleNow = i%sampleFrequency == 0 && calculateStatistics;
+        if(sampleNow){
             myStats->sampleStats();
             myStats->printSystemProperties();
         }
+        timeEvolve();
         fastPressure = 0.0;
         fastPotentialEnergy = 0.0;
         //calculateForcesCellsLJMIC();
-        sampleNow = useBerendsenThermostat && i < numberOfThermostatSteps;
-        timeEvolve();
+
+
         if(useAndersenThermostat && i < numberOfThermostatSteps){
             andersenThermostat(thermostatTemperature);
         }
         else if(useBerendsenThermostat && i < numberOfThermostatSteps){
+            if(!sampleNow) cout << "Temperature not measured before using thermostat!" << endl;
             berendsenThermostat(thermostatTemperature);
         }
+        timeStep++;
         cout << " done!" << endl;
     }
 
     saveFilename = "experiments/" + fn + "/results/" + "lastState.xyz";
+    periodicBoundaries();
     mySystem->vmdPrintSystem(saveFilename);
 
     //some jargon to make file extensions 000, 001, 002, etc.
@@ -180,15 +203,55 @@ void Simulation::runSimulation(){
     myStats->sampleStats();
     myStats->printSystemProperties();
     myStats->systemFile.close();
+
+    filename = "experiments/" + fn + "/results/cellpressure.xyz";
+    std::ofstream myfile;
+    myfile.open(filename.c_str());
+    string name;
+    vec3 pos;
+    myfile << mySystem->totalCells << std::endl;
+    myfile << "This line has not unintentionally been left unblank" << std::endl;
+    double pressure;
+
+    for(int i=0;i<mySystem->totalCells;i++){
+        pressure = 0;
+        for(auto j=cellList[i]->atomsInCell.begin(); j!= cellList[i]->atomsInCell.end(); ++j){
+            pressure += (*j)->atomPressure;
+        }
+        name = "He";
+        //pressure = cellList[i]->cellPressure;
+        pos = cellList[i]->cellPos;
+        myfile << name << " " << pos(0) << " " << pos(1) << " " << pos(2) << " " <<
+                  pressure << " " << std::endl;
+    }
+    myfile.close();
 }
+
+
+
+
 
 void Simulation::periodicBoundaries(){
     vec3 modulusVec;
     double xtest = b*nx;
     double ytest = b*ny;
     double ztest = b*nz;
+    #pragma omp parallel for private(modulusVec) num_threads(cpus)
     for(int i=0; i<totalAtoms;i++){
+
         modulusVec = atomList[i]->getPos();
+        if(timeStep>numberOfThermostatSteps){
+            if(sampleNow){
+                if(!atomList[i]->isFrozen){
+                    if(modulusVec(0)>xtest){
+                    myStats->numberOfLoopsX++;
+                    }
+                    else if(modulusVec(0)<0.0){
+                        myStats->numberOfLoopsX--;
+                    }
+                }
+            }
+        }
         modulusVec(0) = fmod(modulusVec(0),xtest);
         if(modulusVec(0) < 0){modulusVec(0) += xtest;}
         modulusVec(1) = fmod(modulusVec(1),ytest);
@@ -203,8 +266,10 @@ void Simulation::periodicBoundaries(){
 
 void Simulation::calculateForcesCellsLJMIC(){
     // leonard-jones force using minimal image convention
-    calculateForcesNull(); //zero out the forces vector
-#pragma omp parallel num_threads(4)
+    //calculateForcesNull(); //zero out the forces vector
+    fastPressure = 0;
+    fastPotentialEnergy = 0;
+#pragma omp parallel num_threads(cpus)
     {
     int i;
     int thisIndex;
@@ -221,7 +286,9 @@ void Simulation::calculateForcesCellsLJMIC(){
 
     double potentialEnergyThread = 0.0;
     double singlePairPotential;
-    double pressureThread;
+    double pressureThread = 0;
+    bool calculate;
+    double singleParticlePressure = 0;
 //#pragma omp parallel private(singlePair,singlePairPotential,pressureThread,i,thisIndex,otherIndex,dummyk,jint,j,k,neighbourPos,counter,forcesThread,potentialEnergyThread) num_threads(4)
 //    {
 //        forcesThread = zeros(3,totalAtoms);
@@ -244,7 +311,9 @@ void Simulation::calculateForcesCellsLJMIC(){
                             singlePairAlt[1] = (atomList[thisIndex]->getPos()(1) - atomList[otherIndex]->getPos()(1));
                             singlePairAlt[2] = (atomList[thisIndex]->getPos()(2) - atomList[otherIndex]->getPos()(2));
 
-                            singlePairForces(singlePairAlt,&singlePairPotential, &pressureThread);
+                            singlePairForces(singlePairAlt,&singlePairPotential, &singleParticlePressure);
+                            pressureThread += singleParticlePressure;
+                            atomList[thisIndex]->atomPressure += singleParticlePressure;
                             if(sampleNow) potentialEnergyThread += singlePairPotential;
                             alternate[thisIndex][0] += singlePairAlt[0];
                             alternate[thisIndex][1] += singlePairAlt[1];
@@ -252,6 +321,7 @@ void Simulation::calculateForcesCellsLJMIC(){
                             alternate[otherIndex][0] -= singlePairAlt[0];
                             alternate[otherIndex][1] -= singlePairAlt[1];
                             alternate[otherIndex][2] -= singlePairAlt[2];
+
                         }
 
                         //particles in neighbouring cells
@@ -263,12 +333,14 @@ void Simulation::calculateForcesCellsLJMIC(){
                             neighbourPos = cellList[i]->neighbourList[neighbour];
                             for(auto k=cellList[neighbourPos]->atomsInCell.begin(); k!= cellList[neighbourPos]->atomsInCell.end(); ++k){
                                 otherIndex = (*k)->getSystemIndex();
+
                                 singlePairAlt[0] = atomList[thisIndex]->getPos().at(0) - atomList[otherIndex]->getPos().at(0) - cellList[i]->neighbourVectors[neighbour].at(0);
-                                singlePairAlt[1] = atomList[thisIndex]->getPos().at(1) - atomList[otherIndex]->getPos().at(1)- cellList[i]->neighbourVectors[neighbour].at(1);
+                                singlePairAlt[1] = atomList[thisIndex]->getPos().at(1) - atomList[otherIndex]->getPos().at(1) - cellList[i]->neighbourVectors[neighbour].at(1);
                                 singlePairAlt[2] = atomList[thisIndex]->getPos().at(2) - atomList[otherIndex]->getPos().at(2) - cellList[i]->neighbourVectors[neighbour].at(2);
 
-                                singlePairForces(singlePairAlt, &singlePairPotential, &pressureThread);
-
+                                singlePairForces(singlePairAlt, &singlePairPotential, &singleParticlePressure);
+                                pressureThread += singleParticlePressure;
+                                atomList[thisIndex]->atomPressure += singleParticlePressure;
                                 if(sampleNow) potentialEnergyThread += singlePairPotential;
 
                                 alternate[thisIndex][0] += singlePairAlt[0];
@@ -277,6 +349,7 @@ void Simulation::calculateForcesCellsLJMIC(){
                                 alternate[otherIndex][0] -= singlePairAlt[0];
                                 alternate[otherIndex][1] -= singlePairAlt[1];
                                 alternate[otherIndex][2] -= singlePairAlt[2];
+
                             }
                         }
                     }
@@ -293,6 +366,10 @@ void Simulation::calculateForcesCellsLJMIC(){
                 }
             }
         }
+        for(int i = 0; i<totalAtoms;i++){
+            delete[] alternate[i];
+        }
+        delete[] alternate;
     }
     myStats->pressure = fastPressure;
     myStats->potentialEnergy = fastPotentialEnergy;
@@ -321,4 +398,33 @@ void Simulation::andersenThermostat(double temp){
     }
 }
 
+void Simulation::calculateForces(){
+    calculateForcesNull();
+    if(useLJ) calculateForcesCellsLJMIC();
+    //cout << gravityXComponent << endl;
+    if(useGrav) calculateForcesGravity();
+    if(useThreeBody) calculateForcesThreeBody();
+    if(useFourBody) calculateForcesFourBody();
+    if(useSixBody) calculateForcesSixBody();
+}
 
+void Simulation::calculateForcesGravity(){
+    for(int i=0; i<totalAtoms; i++){
+        forces(0,i)+=gravityXComponent;
+        forces(1,i)+=gravityYComponent;
+        forces(2,i)+=gravityZComponent;
+//cout << "cool" << endl;
+    }
+}
+
+void Simulation::calculateForcesThreeBody(){
+
+}
+
+void Simulation::calculateForcesFourBody(){
+
+}
+
+void Simulation::calculateForcesSixBody(){
+
+}

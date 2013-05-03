@@ -32,6 +32,7 @@ public:
     bool isFrozen;
     arma::vec3 initialPos;
     arma::vec3 realPos;
+    double atomPressure;
 
 
 

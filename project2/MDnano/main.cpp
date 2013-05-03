@@ -66,6 +66,6 @@ int main(int argc, char* argv[])
 //      cerr << "No 'name' setting in configuration file." << endl;
 //    }
 //    cout << n << " " << EXIT_SUCCESS << endl;
-    return(0);
+    return(3);
 
 }
